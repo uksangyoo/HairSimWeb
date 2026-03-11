@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DYMO-Hair Toy Simulation</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b1020;
+      color: #f5f7ff;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: radial-gradient(circle at top left, #283966, #0b1020);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    header p {
+      margin: 0.35rem 0 0;
+      font-size: 0.9rem;
+      color: #c1c7ff;
+      max-width: 40rem;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 1.5rem 1.5rem;
+      gap: 1rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+      gap: 1.25rem;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      background: radial-gradient(circle at top, #151a30, #050714);
+      border-radius: 0.9rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 18px 45px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: linear-gradient(to right, rgba(90, 115, 255, 0.2), transparent);
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #e5e8ff;
+    }
+
+    .panel-header span.badge {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(181, 199, 255, 0.6);
+      color: #b5c7ff;
+      background: radial-gradient(circle at top, rgba(181, 199, 255, 0.25), transparent);
+    }
+
+    #sim-container {
+      position: relative;
+      padding: 1rem;
+    }
+
+    #sim-canvas {
+      display: block;
+      width: 100%;
+      border-radius: 0.75rem;
+      background: radial-gradient(circle at top, #111a33, #02030a);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: crosshair;
+      box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.95),
+        0 0 0 1px rgba(88, 140, 255, 0.12),
+        inset 0 0 40px rgba(0, 0, 0, 0.8);
+    }
+
+    .sim-hint {
+      position: absolute;
+      left: 1.5rem;
+      bottom: 1.5rem;
+      font-size: 0.75rem;
+      color: #c1c7ff;
+      background: rgba(7, 11, 30, 0.9);
+      padding: 0.35rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(120, 146, 255, 0.5);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      pointer-events: none;
+    }
+
+    .sim-hint kbd {
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.35rem;
+      border: 1px solid rgba(193, 199, 255, 0.4);
+      font-size: 0.65rem;
+      background: rgba(6, 8, 20, 0.9);
+      color: #e5e8ff;
+    }
+
+    .controls {
+      padding: 0.85rem 1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .toggle-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(164, 179, 255, 0.7);
+      background: radial-gradient(circle at top, rgba(92, 118, 255, 0.28), rgba(12, 16, 38, 0.9));
+      font-size: 0.8rem;
+      color: #e0e3ff;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle input {
+      accent-color: #8294ff;
+    }
+
+    .toggle span.label-main {
+      font-weight: 600;
+    }
+
+    .pill-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #a9b4ff;
+    }
+
+    .btn-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+
+    button {
+      border-radius: 999px;
+      border: 1px solid rgba(151, 167, 255, 0.8);
+      background: radial-gradient(circle at top, #4d65ff, #1a2250);
+      color: #f5f7ff;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(23, 31, 90, 0.9);
+    }
+
+    button.secondary {
+      background: radial-gradient(circle at top, #151a33, #050714);
+      border-color: rgba(130, 148, 255, 0.7);
+      box-shadow: none;
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 18px rgba(23, 31, 90, 0.9);
+    }
+
+    button span.dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: #4dffb5;
+      box-shadow: 0 0 12px rgba(77, 255, 181, 0.8);
+    }
+
+    button.paused span.dot {
+      background: #ffb54d;
+      box-shadow: 0 0 12px rgba(255, 181, 77, 0.8);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.8rem;
+      color: #cfd4ff;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      accent-color: #7d91ff;
+    }
+
+    .slider-value {
+      font-variant-numeric: tabular-nums;
+      min-width: 2.4rem;
+      text-align: right;
+      color: #e4e7ff;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      color: #c1c7ff;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(14, 18, 40, 0.95);
+      border: 1px solid rgba(116, 137, 248, 0.6);
+    }
+
+    .legend-swatch {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 999px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+    }
+
+    .swatch-unstable {
+      background: #f97373;
+    }
+
+    .swatch-regularized {
+      background: #4dffb5;
+    }
+
+    .swatch-root {
+      background: #7dd3fc;
+    }
+
+    .metrics {
+      font-size: 0.8rem;
+      color: #c9d1ff;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    footer {
+      padding: 0.75rem 1.5rem 1.25rem;
+      font-size: 0.75rem;
+      color: #9099ff;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      background: radial-gradient(circle at bottom right, #1a2344, #050714);
+    }
+
+    footer a {
+      color: #c3c9ff;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DYMO-Hair Toy Simulation</h1>
+    <p>
+      Interactive strand-level hair toy inspired by the DYMO-Hair simulator’s PBD constraints.
+      Click–drag the comb through the hair and toggle stretch, bending, and twist regularization to see their effects.
+    </p>
+  </header>
+
+  <main>
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Hair Strand Playground</h2>
+          <span class="badge">Click &amp; drag to comb</span>
+        </div>
+        <div id="sim-container">
+          <canvas id="sim-canvas" width="900" height="520"></canvas>
+          <div class="sim-hint">
+            <kbd>Click</kbd> &amp; drag to comb hair
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-header">
+          <h2>Model Controls</h2>
+          <span class="badge">PBD constraints</span>
+        </div>
+        <div class="controls">
+          <div class="control-group">
+            <span class="pill-label">Regularization terms</span>
+            <div class="toggle-group">
+              <label class="toggle">
+                <input type="checkbox" id="stretch-toggle" checked />
+                <span class="label-main">Stretch</span>
+                <span>(keeps segment length)</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="bending-toggle" checked />
+                <span class="label-main">Bending</span>
+                <span>(smooth angles)</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="twist-toggle" checked />
+                <span class="label-main">Twist</span>
+                <span>(resists corkscrew)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <span class="pill-label">World parameters</span>
+            <div class="slider-row">
+              <span>Gravity</span>
+              <input type="range" id="gravity-slider" min="0" max="30" value="12" />
+              <span class="slider-value" id="gravity-value">1.2g</span>
+            </div>
+            <div class="slider-row">
+              <span>Hair stiffness</span>
+              <input type="range" id="stiffness-slider" min="1" max="40" value="15" />
+              <span class="slider-value" id="stiffness-value">15 iters</span>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <span class="pill-label">Simulation</span>
+            <div class="control-row">
+              <div class="btn-bar">
+                <button id="play-pause-btn">
+                  <span class="dot"></span>
+                  <span>Running</span>
+                </button>
+                <button id="reset-btn" class="secondary">
+                  <span>Reset Hair</span>
+                </button>
+                <button id="messy-btn" class="secondary">
+                  <span>Make Messy</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <span class="pill-label">Legend &amp; diagnostics</span>
+            <div class="legend">
+              <span class="legend-item">
+                <span class="legend-swatch swatch-root"></span>
+                Root (fixed)
+              </span>
+              <span class="legend-item">
+                <span class="legend-swatch swatch-regularized"></span>
+                Stable / regularized strand
+              </span>
+              <span class="legend-item">
+                <span class="legend-swatch swatch-unstable"></span>
+                High strain (no regularization)
+              </span>
+            </div>
+            <div class="metrics" id="metrics">
+              <div class="metric-row">
+                <span>Mean stretch error</span>
+                <span id="metric-stretch">–</span>
+              </div>
+              <div class="metric-row">
+                <span>Mean bending error</span>
+                <span id="metric-bend">–</span>
+              </div>
+              <div class="metric-row">
+                <span>Mean twist error</span>
+                <span id="metric-twist">–</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    Toy simulator capturing the spirit of the DYMO-Hair strand model (stretch, bending, twist constraints) in 2D.
+    This is a pedagogical visualization, not a full volumetric implementation.
+  </footer>
+
+  <script>
+    // Basic 2D PBD-style strand simulation with stretch, bending, and twist-like constraints
+
+    const canvas = document.getElementById('sim-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const stretchToggle = document.getElementById('stretch-toggle');
+    const bendingToggle = document.getElementById('bending-toggle');
+    const twistToggle = document.getElementById('twist-toggle');
+    const gravitySlider = document.getElementById('gravity-slider');
+    const gravityValue = document.getElementById('gravity-value');
+    const stiffnessSlider = document.getElementById('stiffness-slider');
+    const stiffnessValue = document.getElementById('stiffness-value');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const messyBtn = document.getElementById('messy-btn');
+
+    const metricStretch = document.getElementById('metric-stretch');
+    const metricBend = document.getElementById('metric-bend');
+    const metricTwist = document.getElementById('metric-twist');
+
+    let running = true;
+
+    // Simulation parameters
+    const strandCount = 32;
+    const segmentsPerStrand = 22;
+    const baseLength = 12; // rest length in pixels
+    const dt = 1 / 60;
+    const damping = 0.995;
+    let solverIterations = parseInt(stiffnessSlider.value, 10);
+
+    let gravity = gravitySlider.value / 10; // map 0–30 -> 0–3 g approx
+
+    const hair = []; // array of strands, each strand is array of particles
+    // Particle: { x, y, px, py, pinned, restLen, restAngles, restFarAngles }
+
+    const rootX = canvas.width * 0.5;
+    const rootY = canvas.height * 0.15;
+    const bundleWidth = 220;
+
+    // Comb interaction
+    const comb = {
+      x: canvas.width * 0.5,
+      y: canvas.height * 0.55,
+      radius: 40,
+      active: false,
+      lastX: null,
+      lastY: null
+    };
+
+    function initHair() {
+      hair.length = 0;
+      for (let s = 0; s < strandCount; s++) {
+        const strand = [];
+        const t = strandCount === 1 ? 0.5 : s / (strandCount - 1);
+        const x0 = rootX - bundleWidth / 2 + t * bundleWidth;
+
+        // Slight randomization of initial direction
+        const spreadAngle = (Math.PI / 6);
+        const baseAngle = Math.PI / 2 + (t - 0.5) * spreadAngle;
+        const jitter = (Math.random() - 0.5) * 0.08;
+        const angle = baseAngle + jitter;
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+
+        for (let i = 0; i < segmentsPerStrand; i++) {
+          const px = x0 + dx * baseLength * i;
+          const py = rootY + dy * baseLength * i;
+          strand.push({
+            x: px,
+            y: py,
+            px: px,
+            py: py,
+            pinned: i === 0,
+            restLen: baseLength,
+            restAngles: null,    // to be filled
+            restFarAngles: null  // for twist-like constraints
+          });
+        }
+
+        // Precompute rest angles
+        const restAngles = new Array(segmentsPerStrand).fill(0);
+        const restFarAngles = new Array(segmentsPerStrand).fill(0);
+
+        for (let i = 1; i < segmentsPerStrand - 1; i++) {
+          const a = strand[i - 1];
+          const b = strand[i];
+          const c = strand[i + 1];
+          const ang = angleAt(a, b, c);
+          restAngles[i] = ang;
+        }
+
+        const k = 3; // skip distance for twist-like constraint
+        for (let i = k; i < segmentsPerStrand - k; i++) {
+          const a = strand[i - k];
+          const b = strand[i];
+          const c = strand[i + k];
+          const ang = angleAt(a, b, c);
+          restFarAngles[i] = ang;
+        }
+
+        for (let i = 0; i < segmentsPerStrand; i++) {
+          strand[i].restAngles = restAngles;
+          strand[i].restFarAngles = restFarAngles;
+        }
+
+        hair.push(strand);
+      }
+    }
+
+    function angleAt(a, b, c) {
+      const v1x = a.x - b.x;
+      const v1y = a.y - b.y;
+      const v2x = c.x - b.x;
+      const v2y = c.y - b.y;
+      const dot = v1x * v2x + v1y * v2y;
+      const len1 = Math.hypot(v1x, v1y) || 1e-6;
+      const len2 = Math.hypot(v2x, v2y) || 1e-6;
+      let cos = dot / (len1 * len2);
+      cos = Math.max(-1, Math.min(1, cos));
+      return Math.acos(cos);
+    }
+
+    function verletIntegrate() {
+      for (const strand of hair) {
+        for (const p of strand) {
+          if (p.pinned) continue;
+          const vx = (p.x - p.px) * damping;
+          const vy = (p.y - p.py) * damping;
+
+          p.px = p.x;
+          p.py = p.y;
+
+          p.x += vx;
+          p.y += vy + gravity * dt * 60;
+        }
+      }
+    }
+
+    function applyStretch() {
+      const stiffness = 0.75;
+      for (const strand of hair) {
+        for (let i = 0; i < strand.length - 1; i++) {
+          const a = strand[i];
+          const b = strand[i + 1];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy) || 1e-6;
+          const diff = (dist - a.restLen) / dist;
+          const corrX = dx * diff * 0.5 * stiffness;
+          const corrY = dy * diff * 0.5 * stiffness;
+
+          if (!a.pinned) {
+            a.x += corrX;
+            a.y += corrY;
+          }
+          if (!b.pinned) {
+            b.x -= corrX;
+            b.y -= corrY;
+          }
+        }
+      }
+    }
+
+    function applyBending() {
+      const stiffness = 0.4;
+      for (const strand of hair) {
+        const restAngles = strand[0].restAngles;
+        for (let i = 1; i < strand.length - 1; i++) {
+          const a = strand[i - 1];
+          const b = strand[i];
+          const c = strand[i + 1];
+          const current = angleAt(a, b, c);
+          const rest = restAngles[i];
+          const diff = current - rest;
+          if (Math.abs(diff) < 1e-3) continue;
+
+          // Simple angle correction: rotate neighbors slightly to restore angle
+          const strength = stiffness;
+          const dir = diff > 0 ? -1 : 1;
+
+          const move = (p, center, factor) => {
+            if (p.pinned) return;
+            const vx = p.x - center.x;
+            const vy = p.y - center.y;
+            const len = Math.hypot(vx, vy) || 1e-6;
+            const nx = -vy / len;
+            const ny = vx / len;
+            const mag = dir * factor * Math.min(len, baseLength);
+            p.x += nx * mag;
+            p.y += ny * mag;
+          };
+
+          move(a, b, strength);
+          move(c, b, strength);
+        }
+      }
+    }
+
+    function applyTwistLike() {
+      const stiffness = 0.25;
+      const k = 3;
+      for (const strand of hair) {
+        const restFarAngles = strand[0].restFarAngles;
+        for (let i = k; i < strand.length - k; i++) {
+          const a = strand[i - k];
+          const b = strand[i];
+          const c = strand[i + k];
+          const current = angleAt(a, b, c);
+          const rest = restFarAngles[i];
+          if (rest === 0) continue; // not initialized near ends
+          const diff = current - rest;
+          if (Math.abs(diff) < 1e-3) continue;
+
+          const dir = diff > 0 ? -1 : 1;
+          const strength = stiffness;
+
+          const move = (p, center, factor, weight = 1) => {
+            if (p.pinned) return;
+            const vx = p.x - center.x;
+            const vy = p.y - center.y;
+            const len = Math.hypot(vx, vy) || 1e-6;
+            const nx = -vy / len;
+            const ny = vx / len;
+            const mag = dir * factor * weight * Math.min(len, baseLength * 1.5);
+            p.x += nx * mag;
+            p.y += ny * mag;
+          };
+
+          move(a, b, strength, 0.5);
+          move(c, b, strength, 0.5);
+          move(b, b, strength, 1.2);
+        }
+      }
+    }
+
+    function applyCombInteraction() {
+      if (!comb.active) return;
+      const dragVX = comb.lastX != null ? (comb.x - comb.lastX) : 0;
+      const dragVY = comb.lastY != null ? (comb.y - comb.lastY) : 0;
+
+      for (const strand of hair) {
+        for (const p of strand) {
+          if (p.pinned) continue;
+          const dx = p.x - comb.x;
+          const dy = p.y - comb.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < comb.radius) {
+            const t = (comb.radius - dist) / comb.radius;
+            const push = t * 0.9;
+
+            // Push hair out of comb center and add drag
+            const nx = dist > 1e-4 ? dx / dist : 0;
+            const ny = dist > 1e-4 ? dy / dist : 1;
+
+            p.x += nx * push * 6 + dragVX * 0.7;
+            p.y += ny * push * 6 + dragVY * 0.7;
+          }
+        }
+      }
+    }
+
+    function enforceBounds() {
+      const padding = 10;
+      for (const strand of hair) {
+        for (const p of strand) {
+          if (p.pinned) continue;
+          if (p.x < padding) p.x = padding;
+          if (p.x > canvas.width - padding) p.x = canvas.width - padding;
+          if (p.y < rootY + 4) p.y = rootY + 4;
+          if (p.y > canvas.height - padding) p.y = canvas.height - padding;
+        }
+      }
+    }
+
+    function computeMetrics() {
+      let stretchErr = 0;
+      let stretchCount = 0;
+      let bendErr = 0;
+      let bendCount = 0;
+      let twistErr = 0;
+      let twistCount = 0;
+
+      for (const strand of hair) {
+        // stretch
+        for (let i = 0; i < strand.length - 1; i++) {
+          const a = strand[i];
+          const b = strand[i + 1];
+          const dist = Math.hypot(b.x - a.x, b.y - a.y);
+          const err = Math.abs(dist - a.restLen) / a.restLen;
+          stretchErr += err;
+          stretchCount++;
+        }
+        // bending
+        const restAngles = strand[0].restAngles;
+        for (let i = 1; i < strand.length - 1; i++) {
+          const a = strand[i - 1];
+          const b = strand[i];
+          const c = strand[i + 1];
+          const current = angleAt(a, b, c);
+          const rest = restAngles[i];
+          bendErr += Math.abs(current - rest);
+          bendCount++;
+        }
+        // twist-like
+        const restFarAngles = strand[0].restFarAngles;
+        const k = 3;
+        for (let i = k; i < strand.length - k; i++) {
+          const a = strand[i - k];
+          const b = strand[i];
+          const c = strand[i + k];
+          const current = angleAt(a, b, c);
+          const rest = restFarAngles[i];
+          if (rest === 0) continue;
+          twistErr += Math.abs(current - rest);
+          twistCount++;
+        }
+      }
+
+      metricStretch.textContent = (stretchErr / Math.max(stretchCount, 1) * 100).toFixed(1) + ' %';
+      metricBend.textContent = (bendErr / Math.max(bendCount, 1) * 57.2958).toFixed(1) + ' °';
+      metricTwist.textContent = (twistErr / Math.max(twistCount, 1) * 57.2958).toFixed(1) + ' °';
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw strands
+      for (const strand of hair) {
+        // Assess strain along strand to color it
+        let avgStretch = 0;
+        let count = 0;
+        for (let i = 0; i < strand.length - 1; i++) {
+          const a = strand[i];
+          const b = strand[i + 1];
+          const dist = Math.hypot(b.x - a.x, b.y - a.y);
+          const err = Math.abs(dist - a.restLen) / a.restLen;
+          avgStretch += err;
+          count++;
+        }
+        avgStretch /= Math.max(count, 1);
+
+        const hasRegs = stretchToggle.checked || bendingToggle.checked || twistToggle.checked;
+        let color;
+        if (hasRegs) {
+          // Map strain to green->yellow->red
+          const t = Math.min(1, avgStretch * 4);
+          const r = Math.round(77 + t * (249 - 77));
+          const g = Math.round(255 + t * (115 - 255));
+          const b = Math.round(181 + t * (115 - 181));
+          color = `rgb(${r},${g},${b})`;
+        } else {
+          // Very unstable without any regularization
+          const t = Math.min(1, avgStretch * 5);
+          const r = 249;
+          const g = Math.round(115 + (1 - t) * 60);
+          const b = Math.round(115 + (1 - t) * 40);
+          color = `rgb(${r},${g},${b})`;
+        }
+
+        ctx.lineWidth = 2.1;
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        for (let i = 0; i < strand.length; i++) {
+          const p = strand[i];
+          if (i === 0) {
+            ctx.moveTo(p.x, p.y);
+          } else {
+            ctx.lineTo(p.x, p.y);
+          }
+        }
+        ctx.stroke();
+
+        // Draw root as cyan dot
+        const root = strand[0];
+        ctx.fillStyle = '#7dd3fc';
+        ctx.beginPath();
+        ctx.arc(root.x, root.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw comb
+      if (comb.active) {
+        ctx.strokeStyle = 'rgba(148, 197, 255, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+      } else {
+        ctx.strokeStyle = 'rgba(148, 197, 255, 0.5)';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([4, 4]);
+      }
+      ctx.beginPath();
+      ctx.arc(comb.x, comb.y, comb.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Comb center
+      ctx.fillStyle = comb.active ? 'rgba(77, 255, 181, 0.4)' : 'rgba(129, 140, 248, 0.3)';
+      ctx.beginPath();
+      ctx.arc(comb.x, comb.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function step() {
+      if (running) {
+        verletIntegrate();
+        applyCombInteraction();
+
+        const iters = solverIterations;
+        for (let i = 0; i < iters; i++) {
+          if (stretchToggle.checked) applyStretch();
+          if (bendingToggle.checked) applyBending();
+          if (twistToggle.checked) applyTwistLike();
+          enforceBounds();
+        }
+        computeMetrics();
+      }
+
+      render();
+      requestAnimationFrame(step);
+    }
+
+    // UI wiring
+    gravitySlider.addEventListener('input', () => {
+      gravity = gravitySlider.value / 10;
+      gravityValue.textContent = (gravitySlider.value / 10).toFixed(1) + 'g';
+    });
+
+    stiffnessSlider.addEventListener('input', () => {
+      solverIterations = parseInt(stiffnessSlider.value, 10);
+      stiffnessValue.textContent = solverIterations + ' iters';
+    });
+
+    playPauseBtn.addEventListener('click', () => {
+      running = !running;
+      const dot = playPauseBtn.querySelector('.dot');
+      const label = playPauseBtn.querySelector('span:nth-child(2)');
+      if (running) {
+        playPauseBtn.classList.remove('paused');
+        dot.style.background = '#4dffb5';
+        dot.style.boxShadow = '0 0 12px rgba(77, 255, 181, 0.8)';
+        label.textContent = 'Running';
+      } else {
+        playPauseBtn.classList.add('paused');
+        dot.style.background = '#ffb54d';
+        dot.style.boxShadow = '0 0 12px rgba(255, 181, 77, 0.8)';
+        label.textContent = 'Paused';
+      }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      initHair();
+    });
+
+    messyBtn.addEventListener('click', () => {
+      // Apply a few random "shake" comb strokes to mess up the hair
+      for (let n = 0; n < 7; n++) {
+        const cx = rootX + (Math.random() - 0.5) * (bundleWidth * 1.2);
+        const cy = rootY + canvas.height * (0.25 + Math.random() * 0.4);
+        comb.x = cx;
+        comb.y = cy;
+        comb.lastX = cx - (Math.random() - 0.5) * 40;
+        comb.lastY = cy - (Math.random() - 0.5) * 40;
+        comb.active = true;
+        applyCombInteraction();
+      }
+      comb.active = false;
+      comb.lastX = comb.lastY = null;
+    });
+
+    function canvasPosFromEvent(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const { x, y } = canvasPosFromEvent(e);
+      comb.active = true;
+      comb.x = x;
+      comb.y = y;
+      comb.lastX = x;
+      comb.lastY = y;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!comb.active) return;
+      const { x, y } = canvasPosFromEvent(e);
+      comb.lastX = comb.x;
+      comb.lastY = comb.y;
+      comb.x = x;
+      comb.y = y;
+    });
+
+    window.addEventListener('mouseup', () => {
+      comb.active = false;
+      comb.lastX = comb.lastY = null;
+    });
+
+    window.addEventListener('mouseleave', () => {
+      comb.active = false;
+      comb.lastX = comb.lastY = null;
+    });
+
+    // Initialize UI text
+    gravityValue.textContent = (gravitySlider.value / 10).toFixed(1) + 'g';
+    stiffnessValue.textContent = solverIterations + ' iters';
+
+    // Boot
+    initHair();
+    requestAnimationFrame(step);
+  </script>
+</body>
+</html>
+
