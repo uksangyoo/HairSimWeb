@@ -65,11 +65,43 @@
       padding: 0.5rem;
     }
 
+    .view-tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .view-tabs button {
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .view-tabs button.active {
+      background: #333;
+      color: #fff;
+      border-color: #333;
+    }
+
     #sim-canvas {
       display: block;
       width: 100%;
       background: #fff;
       border: 1px solid #ccc;
+      cursor: crosshair;
+    }
+
+    #sim-3d-container {
+      display: none;
+      width: 100%;
+      height: 520px;
+      background: #e8e8e8;
+      border: 1px solid #ccc;
+    }
+
+    #sim-3d-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
       cursor: crosshair;
     }
 
@@ -194,8 +226,13 @@
       <section class="panel">
         <div class="panel-header">Hair playground</div>
         <div id="sim-container">
+          <div class="view-tabs">
+            <button type="button" id="view-2d" class="active">2D</button>
+            <button type="button" id="view-3d">3D</button>
+          </div>
           <canvas id="sim-canvas" width="900" height="520"></canvas>
-          <div class="sim-hint">Click and drag to comb hair.</div>
+          <div id="sim-3d-container"></div>
+          <div class="sim-hint">Click and drag to comb hair. (3D: drag to move comb in plane, scroll to zoom.)</div>
         </div>
       </section>
 
@@ -211,13 +248,13 @@
             </div>
             <div class="slider-row">
               <span>Bending</span>
-              <input type="range" id="bend-weight" min="0" max="100" value="12" />
-              <span class="slider-value" id="bend-value">12%</span>
+              <input type="range" id="bend-weight" min="0" max="100" value="35" />
+              <span class="slider-value" id="bend-value">35%</span>
             </div>
             <div class="slider-row">
               <span>Twist</span>
-              <input type="range" id="twist-weight" min="0" max="100" value="5" />
-              <span class="slider-value" id="twist-value">5%</span>
+              <input type="range" id="twist-weight" min="0" max="100" value="25" />
+              <span class="slider-value" id="twist-value">25%</span>
             </div>
           </div>
 
@@ -276,10 +313,10 @@
   </main>
 
   <footer>
-    Toy simulator capturing the spirit of the DYMO-Hair strand model (stretch, bending, twist constraints) in 2D.
-    This is a pedagogical visualization, not a full volumetric implementation.
+    Toy simulator: 2D and 3D strand-level hair with stretch, bending, and twist constraints.
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <script>
     // Basic 2D PBD-style strand simulation with stretch, bending, and twist-like constraints
 
@@ -306,8 +343,13 @@
     const metricStretch = document.getElementById('metric-stretch');
     const metricBend = document.getElementById('metric-bend');
     const metricTwist = document.getElementById('metric-twist');
+    const view2dBtn = document.getElementById('view-2d');
+    const view3dBtn = document.getElementById('view-3d');
+    const simCanvas = document.getElementById('sim-canvas');
+    const sim3dContainer = document.getElementById('sim-3d-container');
 
     let running = true;
+    let is3D = false;
 
     // Simulation parameters
     const strandCount = 32;
@@ -318,10 +360,10 @@
     let solverIterations = parseInt(stiffnessSlider.value, 10);
     let gravity = gravitySlider.value / 10;
 
-    // Weight from slider 0–100 -> stiffness in safe range
+    // Slider 0–100% maps to a small stiffness range so mid-range is stable
     function stretchStiff() { return (parseInt(stretchWeightSlider.value, 10) / 100) * 1; }
-    function bendStiff()   { return (parseInt(bendWeightSlider.value, 10) / 100) * 0.3; }
-    function twistStiff()  { return (parseInt(twistWeightSlider.value, 10) / 100) * 0.15; }
+    function bendStiff()   { return (parseInt(bendWeightSlider.value, 10) / 100) * 0.12; }
+    function twistStiff()  { return (parseInt(twistWeightSlider.value, 10) / 100) * 0.06; }
 
     const hair = []; // array of strands, each strand is array of particles
     // Particle: { x, y, px, py, pinned, restLen, restAngles, restFarAngles }
@@ -330,7 +372,7 @@
     const rootY = canvas.height * 0.15;
     const bundleWidth = 220;
 
-    // Comb interaction
+    // Comb interaction (2D)
     const comb = {
       x: canvas.width * 0.5,
       y: canvas.height * 0.55,
@@ -339,6 +381,20 @@
       lastX: null,
       lastY: null
     };
+
+    // ─── 3D simulation state ───
+    const hair3d = [];
+    const baseLength3d = 1.0;
+    const bundleWidth3d = 22;
+    const rootY3d = 4;
+    const comb3d = {
+      x: 0, y: -8, z: 0,
+      radius: 4,
+      active: false,
+      lastX: null, lastY: null, lastZ: null
+    };
+    let scene3d, camera3d, renderer3d, combMesh3d, lineMeshes3d = [];
+    let raycaster3d, mouse3d, plane3d, planeNormal3d, intersection3d;
 
     function initHair() {
       hair.length = 0;
@@ -398,6 +454,241 @@
 
         hair.push(strand);
       }
+    }
+
+    function initHair3D() {
+      hair3d.length = 0;
+      for (let s = 0; s < strandCount; s++) {
+        const t = strandCount === 1 ? 0.5 : s / (strandCount - 1);
+        const x0 = -bundleWidth3d / 2 + t * bundleWidth3d;
+        const spread = 0.4;
+        const dx = (t - 0.5) * spread + (Math.random() - 0.5) * 0.05;
+        const dy = -1;
+        const dz = (Math.random() - 0.5) * 0.05;
+        const len = Math.hypot(dx, dy, dz) || 1e-6;
+        const ux = dx / len, uy = dy / len, uz = dz / len;
+        const strand = [];
+        for (let i = 0; i < segmentsPerStrand; i++) {
+          const px = x0 + ux * baseLength3d * i;
+          const py = rootY3d + uy * baseLength3d * i;
+          const pz = uz * baseLength3d * i;
+          strand.push({
+            x: px, y: py, z: pz,
+            px: px, py: py, pz: pz,
+            pinned: i === 0,
+            restLen: baseLength3d,
+            restAngles: null,
+            restFarAngles: null
+          });
+        }
+        const restAngles = new Array(segmentsPerStrand).fill(0);
+        const restFarAngles = new Array(segmentsPerStrand).fill(0);
+        const k = 4;
+        for (let i = 1; i < segmentsPerStrand - 1; i++) {
+          restAngles[i] = angleAt3D(strand[i - 1], strand[i], strand[i + 1]);
+        }
+        for (let i = k; i < segmentsPerStrand - k; i++) {
+          restFarAngles[i] = angleAt3D(strand[i - k], strand[i], strand[i + k]);
+        }
+        for (let i = 0; i < segmentsPerStrand; i++) {
+          strand[i].restAngles = restAngles;
+          strand[i].restFarAngles = restFarAngles;
+        }
+        hair3d.push(strand);
+      }
+    }
+
+    function angleAt3D(a, b, c) {
+      let v1x = a.x - b.x, v1y = a.y - b.y, v1z = a.z - b.z;
+      let v2x = c.x - b.x, v2y = c.y - b.y, v2z = c.z - b.z;
+      const len1 = Math.sqrt(v1x * v1x + v1y * v1y + v1z * v1z) || 1e-6;
+      const len2 = Math.sqrt(v2x * v2x + v2y * v2y + v2z * v2z) || 1e-6;
+      v1x /= len1; v1y /= len1; v1z /= len1;
+      v2x /= len2; v2y /= len2; v2z /= len2;
+      let cos = v1x * v2x + v1y * v2y + v1z * v2z;
+      cos = Math.max(-1, Math.min(1, cos));
+      return Math.acos(cos);
+    }
+
+    function verlet3D() {
+      const gy = -gravity * dt * 60 * 0.5;
+      for (const strand of hair3d) {
+        for (const p of strand) {
+          if (p.pinned) continue;
+          const vx = (p.x - p.px) * damping;
+          const vy = (p.y - p.py) * damping;
+          const vz = (p.z - p.pz) * damping;
+          p.px = p.x; p.py = p.y; p.pz = p.z;
+          p.x += vx; p.y += vy + gy; p.z += vz;
+        }
+      }
+    }
+
+    function applyStretch3D() {
+      const stiffness = stretchStiff();
+      for (const strand of hair3d) {
+        for (let i = 0; i < strand.length - 1; i++) {
+          const a = strand[i], b = strand[i + 1];
+          let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
+          const diff = (dist - a.restLen) / dist;
+          const h = 0.5 * stiffness * diff;
+          dx *= h; dy *= h; dz *= h;
+          if (!a.pinned) { a.x += dx; a.y += dy; a.z += dz; }
+          if (!b.pinned) { b.x -= dx; b.y -= dy; b.z -= dz; }
+        }
+      }
+    }
+
+    function applyBending3D() {
+      const stiffness = bendStiff();
+      for (const strand of hair3d) {
+        const restAngles = strand[0].restAngles;
+        for (let i = 1; i < strand.length - 1; i++) {
+          const a = strand[i - 1], b = strand[i], c = strand[i + 1];
+          const current = angleAt3D(a, b, c);
+          const rest = restAngles[i];
+          const diff = current - rest;
+          if (Math.abs(diff) < 1e-3) continue;
+          const dir = diff > 0 ? -1 : 1;
+          const strength = stiffness * Math.min(baseLength3d, 0.5);
+          const move = (p, cx, cy, cz, factor) => {
+            if (p.pinned) return;
+            let vx = p.x - cx, vy = p.y - cy, vz = p.z - cz;
+            const L = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1e-6;
+            const perpX = -vy / L * 0.5 + vz / L * 0.5;
+            const perpY = vx / L * 0.5;
+            const perpZ = -vx / L * 0.5;
+            const mag = dir * factor * Math.min(L, baseLength3d);
+            p.x += perpX * mag; p.y += perpY * mag; p.z += perpZ * mag;
+          };
+          move(a, b.x, b.y, b.z, strength);
+          move(c, b.x, b.y, b.z, strength);
+        }
+      }
+    }
+
+    function applyTwist3D() {
+      const stiffness = twistStiff();
+      const k = 4;
+      for (const strand of hair3d) {
+        const restFar = strand[0].restFarAngles;
+        for (let i = k; i < strand.length - k; i++) {
+          const a = strand[i - k], b = strand[i], c = strand[i + k];
+          const current = angleAt3D(a, b, c);
+          const rest = restFar[i];
+          if (rest === 0) continue;
+          const diff = current - rest;
+          if (Math.abs(diff) < 1e-3) continue;
+          const dir = diff > 0 ? -1 : 1;
+          const strength = stiffness * 0.5;
+          const move = (p, cx, cy, cz, f) => {
+            if (p.pinned) return;
+            let vx = p.x - cx, vy = p.y - cy, vz = p.z - cz;
+            const L = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1e-6;
+            const perpX = -vy / L * 0.3 + vz / L * 0.3;
+            const perpY = vx / L * 0.3;
+            const perpZ = -vx / L * 0.3;
+            const mag = dir * f * Math.min(L, baseLength3d);
+            p.x += perpX * mag; p.y += perpY * mag; p.z += perpZ * mag;
+          };
+          move(a, b.x, b.y, b.z, strength);
+          move(c, b.x, b.y, b.z, strength);
+        }
+      }
+    }
+
+    function applyComb3D() {
+      if (!comb3d.active) return;
+      const vx = (comb3d.lastX != null ? comb3d.x - comb3d.lastX : 0) * 0.5;
+      const vy = (comb3d.lastY != null ? comb3d.y - comb3d.lastY : 0) * 0.5;
+      const vz = (comb3d.lastZ != null ? comb3d.z - comb3d.lastZ : 0) * 0.5;
+      for (const strand of hair3d) {
+        for (const p of strand) {
+          if (p.pinned) continue;
+          const dx = p.x - comb3d.x, dy = p.y - comb3d.y, dz = p.z - comb3d.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          if (dist < comb3d.radius) {
+            const t = (comb3d.radius - dist) / comb3d.radius;
+            const n = dist > 1e-6 ? 1 / dist : 1;
+            p.x += (dx * n * t * 2 + vx);
+            p.y += (dy * n * t * 2 + vy);
+            p.z += (dz * n * t * 2 + vz);
+          }
+        }
+      }
+    }
+
+    function enforceBounds3D() {
+      const pad = 2, minY = -25;
+      for (const strand of hair3d) {
+        for (const p of strand) {
+          if (p.pinned) continue;
+          if (p.x < -bundleWidth3d / 2 - pad) p.x = -bundleWidth3d / 2 - pad;
+          if (p.x > bundleWidth3d / 2 + pad) p.x = bundleWidth3d / 2 + pad;
+          if (p.y < minY) p.y = minY;
+          if (p.z < -15) p.z = -15;
+          if (p.z > 15) p.z = 15;
+        }
+      }
+    }
+
+    function setup3D() {
+      if (scene3d) return;
+      const w = sim3dContainer.clientWidth;
+      const h = sim3dContainer.clientHeight;
+      scene3d = new THREE.Scene();
+      scene3d.background = new THREE.Color(0xe8e8e8);
+      camera3d = new THREE.PerspectiveCamera(50, w / h, 0.1, 500);
+      camera3d.position.set(0, -5, 35);
+      camera3d.lookAt(0, -5, 0);
+      renderer3d = new THREE.WebGLRenderer({ antialias: true });
+      renderer3d.setSize(w, h);
+      renderer3d.setPixelRatio(window.devicePixelRatio);
+      sim3dContainer.appendChild(renderer3d.domElement);
+      const light = new THREE.DirectionalLight(0xffffff, 0.9);
+      light.position.set(10, 10, 20);
+      scene3d.add(light);
+      scene3d.add(new THREE.AmbientLight(0xffffff, 0.5));
+      const combGeo = new THREE.SphereGeometry(comb3d.radius, 16, 12);
+      const combMat = new THREE.MeshPhongMaterial({ color: 0x1976d2 });
+      combMesh3d = new THREE.Mesh(combGeo, combMat);
+      scene3d.add(combMesh3d);
+      raycaster3d = new THREE.Raycaster();
+      mouse3d = new THREE.Vector2();
+      planeNormal3d = new THREE.Vector3(0, 1, 0);
+      plane3d = new THREE.Plane(planeNormal3d, 0);
+      intersection3d = new THREE.Vector3();
+    }
+
+    function update3DLines() {
+      const material = new THREE.LineBasicMaterial({ color: 0x333333 });
+      while (lineMeshes3d.length > 0) {
+        scene3d.remove(lineMeshes3d.pop());
+      }
+      for (const strand of hair3d) {
+        const points = strand.map(p => new THREE.Vector3(p.x, p.y, p.z));
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(geo, material.clone());
+        scene3d.add(line);
+        lineMeshes3d.push(line);
+      }
+    }
+
+    function render3D() {
+      combMesh3d.position.set(comb3d.x, comb3d.y, comb3d.z);
+      for (let s = 0; s < hair3d.length; s++) {
+        const strand = hair3d[s];
+        const line = lineMeshes3d[s];
+        if (!line || !line.geometry.attributes.position) continue;
+        const pos = line.geometry.attributes.position;
+        for (let i = 0; i < strand.length; i++) {
+          const p = strand[i];
+          pos.setXYZ(i, p.x, p.y, p.z);
+        }
+        pos.needsUpdate = true;
+      }
+      renderer3d.render(scene3d, camera3d);
     }
 
     function angleAt(a, b, c) {
@@ -677,24 +968,63 @@
     }
 
     function step() {
-      if (running) {
-        verletIntegrate();
-        applyCombInteraction();
-
-        // Global iteration count comes from "Hair stiffness" slider,
-        // but bending and twist run less frequently to avoid instability.
-        const iters = solverIterations;
-        for (let i = 0; i < iters; i++) {
-          if (stretchToggle.checked) applyStretch();          // every iteration
-          if (bendingToggle.checked && i % 2 === 0) applyBending();  // every 2nd
-          if (twistToggle.checked && i % 3 === 0) applyTwistLike();  // every 3rd
-          enforceBounds();
+      if (is3D) {
+        if (running) {
+          verlet3D();
+          applyComb3D();
+          const iters = solverIterations;
+          for (let i = 0; i < iters; i++) {
+            if (stretchToggle.checked) applyStretch3D();
+            if (bendingToggle.checked && i % 2 === 0) applyBending3D();
+            if (twistToggle.checked && i % 3 === 0) applyTwist3D();
+            enforceBounds3D();
+          }
+          computeMetrics3D();
         }
-        computeMetrics();
+        if (scene3d) render3D();
+      } else {
+        if (running) {
+          verletIntegrate();
+          applyCombInteraction();
+          const iters = solverIterations;
+          for (let i = 0; i < iters; i++) {
+            if (stretchToggle.checked) applyStretch();
+            if (bendingToggle.checked && i % 2 === 0) applyBending();
+            if (twistToggle.checked && i % 3 === 0) applyTwistLike();
+            enforceBounds();
+          }
+          computeMetrics();
+        }
+        render();
       }
-
-      render();
       requestAnimationFrame(step);
+    }
+
+    function computeMetrics3D() {
+      let stretchErr = 0, stretchCount = 0, bendErr = 0, bendCount = 0, twistErr = 0, twistCount = 0;
+      for (const strand of hair3d) {
+        for (let i = 0; i < strand.length - 1; i++) {
+          const a = strand[i], b = strand[i + 1];
+          const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+          stretchErr += Math.abs(d - a.restLen) / a.restLen;
+          stretchCount++;
+        }
+        const restAngles = strand[0].restAngles;
+        for (let i = 1; i < strand.length - 1; i++) {
+          bendErr += Math.abs(angleAt3D(strand[i - 1], strand[i], strand[i + 1]) - restAngles[i]);
+          bendCount++;
+        }
+        const restFar = strand[0].restFarAngles;
+        const k = 4;
+        for (let i = k; i < strand.length - k; i++) {
+          if (restFar[i] === 0) continue;
+          twistErr += Math.abs(angleAt3D(strand[i - k], strand[i], strand[i + k]) - restFar[i]);
+          twistCount++;
+        }
+      }
+      metricStretch.textContent = (stretchErr / Math.max(stretchCount, 1) * 100).toFixed(1) + ' %';
+      metricBend.textContent = (bendErr / Math.max(bendCount, 1) * 57.2958).toFixed(1) + ' °';
+      metricTwist.textContent = (twistErr / Math.max(twistCount, 1) * 57.2958).toFixed(1) + ' °';
     }
 
     // UI wiring
@@ -724,24 +1054,69 @@
       playPauseBtn.innerHTML = running ? '<span class="dot"></span>Running' : '<span class="dot"></span>Paused';
     });
 
+    view2dBtn.addEventListener('click', () => {
+      if (is3D) {
+        is3D = false;
+        view2dBtn.classList.add('active');
+        view3dBtn.classList.remove('active');
+        simCanvas.style.display = 'block';
+        sim3dContainer.style.display = 'none';
+      }
+    });
+
+    view3dBtn.addEventListener('click', () => {
+      if (!is3D) {
+        is3D = true;
+        view3dBtn.classList.add('active');
+        view2dBtn.classList.remove('active');
+        simCanvas.style.display = 'none';
+        sim3dContainer.style.display = 'block';
+        setup3D();
+        initHair3D();
+        update3DLines();
+        const w = sim3dContainer.clientWidth;
+        const h = sim3dContainer.clientHeight;
+        renderer3d.setSize(w, h);
+        camera3d.aspect = w / h;
+        camera3d.updateProjectionMatrix();
+      }
+    });
+
     resetBtn.addEventListener('click', () => {
-      initHair();
+      if (is3D) {
+        initHair3D();
+        update3DLines();
+      } else {
+        initHair();
+      }
     });
 
     messyBtn.addEventListener('click', () => {
-      // Apply a few random "shake" comb strokes to mess up the hair
-      for (let n = 0; n < 7; n++) {
-        const cx = rootX + (Math.random() - 0.5) * (bundleWidth * 1.2);
-        const cy = rootY + canvas.height * (0.25 + Math.random() * 0.4);
-        comb.x = cx;
-        comb.y = cy;
-        comb.lastX = cx - (Math.random() - 0.5) * 40;
-        comb.lastY = cy - (Math.random() - 0.5) * 40;
-        comb.active = true;
-        applyCombInteraction();
+      if (is3D) {
+        for (let n = 0; n < 7; n++) {
+          comb3d.x = (Math.random() - 0.5) * bundleWidth3d * 1.2;
+          comb3d.z = (Math.random() - 0.5) * 20;
+          comb3d.lastX = comb3d.x - (Math.random() - 0.5) * 4;
+          comb3d.lastZ = comb3d.z - (Math.random() - 0.5) * 4;
+          comb3d.active = true;
+          applyComb3D();
+        }
+        comb3d.active = false;
+        comb3d.lastX = comb3d.lastY = comb3d.lastZ = null;
+      } else {
+        for (let n = 0; n < 7; n++) {
+          const cx = rootX + (Math.random() - 0.5) * (bundleWidth * 1.2);
+          const cy = rootY + canvas.height * (0.25 + Math.random() * 0.4);
+          comb.x = cx;
+          comb.y = cy;
+          comb.lastX = cx - (Math.random() - 0.5) * 40;
+          comb.lastY = cy - (Math.random() - 0.5) * 40;
+          comb.active = true;
+          applyCombInteraction();
+        }
+        comb.active = false;
+        comb.lastX = comb.lastY = null;
       }
-      comb.active = false;
-      comb.lastX = comb.lastY = null;
     });
 
     function canvasPosFromEvent(e) {
@@ -778,6 +1153,68 @@
     window.addEventListener('mouseleave', () => {
       comb.active = false;
       comb.lastX = comb.lastY = null;
+      comb3d.active = false;
+      comb3d.lastX = comb3d.lastY = comb3d.lastZ = null;
+    });
+
+    function getMouseNDC3D(e) {
+      const rect = sim3dContainer.getBoundingClientRect();
+      mouse3d.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse3d.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    function intersectPlaneY(y) {
+      plane3d.constant = -y;
+      raycaster3d.setFromCamera(mouse3d, camera3d);
+      raycaster3d.ray.intersectPlane(plane3d, intersection3d);
+      return intersection3d;
+    }
+
+    sim3dContainer.addEventListener('mousedown', (e) => {
+      if (!is3D || !scene3d) return;
+      getMouseNDC3D(e);
+      intersectPlaneY(comb3d.y);
+      comb3d.x = intersection3d.x;
+      comb3d.z = intersection3d.z;
+      comb3d.active = true;
+      comb3d.lastX = comb3d.x;
+      comb3d.lastY = comb3d.y;
+      comb3d.lastZ = comb3d.z;
+    });
+
+    sim3dContainer.addEventListener('wheel', (e) => {
+      if (!is3D || !camera3d) return;
+      e.preventDefault();
+      const d = e.deltaY > 0 ? 1.1 : 1 / 1.1;
+      camera3d.position.z *= d;
+      camera3d.position.z = Math.max(15, Math.min(120, camera3d.position.z));
+    }, { passive: false });
+
+    window.addEventListener('mousemove', (e) => {
+      if (comb.active) {
+        const { x, y } = canvasPosFromEvent(e);
+        comb.lastX = comb.x;
+        comb.lastY = comb.y;
+        comb.x = x;
+        comb.y = y;
+        return;
+      }
+      if (comb3d.active && is3D && scene3d) {
+        getMouseNDC3D(e);
+        intersectPlaneY(comb3d.y);
+        comb3d.lastX = comb3d.x;
+        comb3d.lastY = comb3d.y;
+        comb3d.lastZ = comb3d.z;
+        comb3d.x = intersection3d.x;
+        comb3d.z = intersection3d.z;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      comb.active = false;
+      comb.lastX = comb.lastY = null;
+      comb3d.active = false;
+      comb3d.lastX = comb3d.lastY = comb3d.lastZ = null;
     });
 
     // Initialize UI text
@@ -786,6 +1223,17 @@
     twistValueEl.textContent = twistWeightSlider.value + '%';
     gravityValue.textContent = (gravitySlider.value / 10).toFixed(1);
     stiffnessValue.textContent = solverIterations;
+
+    window.addEventListener('resize', () => {
+      if (!is3D || !renderer3d || !sim3dContainer.parentElement) return;
+      const w = sim3dContainer.clientWidth;
+      const h = sim3dContainer.clientHeight;
+      if (w && h) {
+        renderer3d.setSize(w, h);
+        camera3d.aspect = w / h;
+        camera3d.updateProjectionMatrix();
+      }
+    });
 
     // Boot
     initHair();
