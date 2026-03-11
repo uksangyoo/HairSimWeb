@@ -7,238 +7,176 @@
   <style>
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #111827;
-      color: #e5e7eb;
+      font-family: system-ui, sans-serif;
+      background: #fff;
+      color: #222;
       display: flex;
       flex-direction: column;
       min-height: 100vh;
     }
 
     header {
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid #1f2937;
-      background: #020617;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #ddd;
     }
 
     header h1 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
 
     header p {
-      margin: 0.25rem 0 0;
-      font-size: 0.85rem;
-      color: #9ca3af;
+      margin: 0.2rem 0 0;
+      font-size: 0.8rem;
+      color: #666;
       max-width: 36rem;
     }
 
     main {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 0.75rem 1rem 1rem;
-      gap: 0.75rem;
+      padding: 0.5rem 1rem 1rem;
     }
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 2.2fr) minmax(230px, 1fr);
-      gap: 0.75rem;
-      align-items: flex-start;
+      grid-template-columns: 1fr 220px;
+      gap: 1rem;
+      align-items: start;
     }
 
-    @media (max-width: 900px) {
-      .layout {
-        grid-template-columns: minmax(0, 1fr);
-      }
+    @media (max-width: 700px) {
+      .layout { grid-template-columns: 1fr; }
     }
 
     .panel {
-      background: #020617;
-      border-radius: 0.5rem;
-      border: 1px solid #1f2937;
+      border: 1px solid #ddd;
+      background: #fafafa;
     }
 
     .panel-header {
-      padding: 0.5rem 0.75rem;
-      border-bottom: 1px solid #1f2937;
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid #ddd;
       font-size: 0.8rem;
-      color: #d1d5db;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .panel-header h2 {
-      margin: 0;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-    }
-
-    .panel-header span.badge {
-      font-size: 0.7rem;
-      color: #9ca3af;
+      font-weight: 600;
     }
 
     #sim-container {
       position: relative;
-      padding: 0.75rem;
+      padding: 0.5rem;
     }
 
     #sim-canvas {
       display: block;
       width: 100%;
-      border-radius: 0.5rem;
-      background: #020617;
-      border: 1px solid #1f2937;
+      background: #fff;
+      border: 1px solid #ccc;
       cursor: crosshair;
     }
 
     .sim-hint {
       position: absolute;
-      left: 1.1rem;
-      bottom: 1.1rem;
-      font-size: 0.75rem;
-      color: #9ca3af;
-      background: rgba(15, 23, 42, 0.9);
-      padding: 0.25rem 0.5rem;
-      border-radius: 999px;
-      border: 1px solid #374151;
+      left: 0.75rem;
+      bottom: 0.75rem;
+      font-size: 0.7rem;
+      color: #666;
       pointer-events: none;
     }
 
-    .sim-hint kbd {
-      padding: 0.05rem 0.35rem;
-      border-radius: 0.25rem;
-      border: 1px solid #4b5563;
-      font-size: 0.7rem;
-      background: #020617;
-      color: #e5e7eb;
-    }
-
     .controls {
-      padding: 0.6rem 0.75rem 0.75rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
+      padding: 0.5rem 0.6rem;
       font-size: 0.8rem;
     }
 
     .control-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
+      margin-bottom: 0.6rem;
     }
 
-    .pill-label {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: #9ca3af;
+    .control-group:last-child {
+      margin-bottom: 0;
     }
 
-    .toggle-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
-
-    .toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.2rem 0.55rem;
-      border-radius: 999px;
-      border: 1px solid #374151;
-      cursor: pointer;
-      user-select: none;
-      background: #020617;
-      color: #e5e7eb;
-    }
-
-    .toggle input {
-      accent-color: #60a5fa;
-    }
-
-    .toggle span.label-main {
-      font-weight: 600;
+    .control-group label {
+      display: block;
+      font-size: 0.75rem;
+      color: #555;
+      margin-bottom: 0.2rem;
     }
 
     .slider-row {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      color: #d1d5db;
+      gap: 0.4rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .slider-row span:first-child {
+      min-width: 4.5rem;
     }
 
     .slider-row input[type="range"] {
       flex: 1;
-      accent-color: #60a5fa;
     }
 
     .slider-value {
       font-variant-numeric: tabular-nums;
-      min-width: 2.3rem;
+      min-width: 2.2rem;
       text-align: right;
-      color: #e5e7eb;
+      font-size: 0.75rem;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.2rem;
+      cursor: pointer;
     }
 
     .btn-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
-    }
-
-    button {
-      border-radius: 999px;
-      border: 1px solid #374151;
-      background: #111827;
-      color: #e5e7eb;
-      font-size: 0.75rem;
-      padding: 0.25rem 0.65rem;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
       gap: 0.35rem;
     }
 
-    button.secondary {
-      background: #020617;
+    button {
+      border: 1px solid #999;
+      background: #eee;
+      color: #222;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
     }
 
     button span.dot {
-      width: 0.45rem;
-      height: 0.45rem;
-      border-radius: 999px;
-      background: #4ade80;
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #2e7d32;
+      margin-right: 0.25rem;
     }
 
     button.paused span.dot {
-      background: #facc15;
+      background: #ed6c02;
     }
 
     .metrics {
       font-size: 0.75rem;
-      color: #9ca3af;
-      display: flex;
-      flex-direction: column;
-      gap: 0.2rem;
+      color: #555;
+      margin-top: 0.5rem;
     }
 
     .metric-row {
       display: flex;
       justify-content: space-between;
-      gap: 0.5rem;
     }
 
     footer {
-      padding: 0.5rem 1rem 0.75rem;
-      font-size: 0.75rem;
-      color: #6b7280;
-      border-top: 1px solid #1f2937;
-      background: #020617;
+      padding: 0.4rem 1rem;
+      font-size: 0.7rem;
+      color: #666;
+      border-top: 1px solid #ddd;
     }
   </style>
 </head>
@@ -254,106 +192,82 @@
   <main>
     <div class="layout">
       <section class="panel">
-        <div class="panel-header">
-          <h2>Hair Strand Playground</h2>
-          <span class="badge">Click &amp; drag to comb</span>
-        </div>
+        <div class="panel-header">Hair playground</div>
         <div id="sim-container">
           <canvas id="sim-canvas" width="900" height="520"></canvas>
-          <div class="sim-hint">
-            <kbd>Click</kbd> &amp; drag to comb hair
-          </div>
+          <div class="sim-hint">Click and drag to comb hair.</div>
         </div>
       </section>
 
       <aside class="panel">
-        <div class="panel-header">
-          <h2>Model Controls</h2>
-          <span class="badge">PBD constraints</span>
-        </div>
+        <div class="panel-header">Controls</div>
         <div class="controls">
           <div class="control-group">
-            <span class="pill-label">Regularization terms</span>
-            <div class="toggle-group">
-              <label class="toggle">
-                <input type="checkbox" id="stretch-toggle" checked />
-                <span class="label-main">Stretch</span>
-                <span>(keeps segment length)</span>
-              </label>
-              <label class="toggle">
-                <input type="checkbox" id="bending-toggle" checked />
-                <span class="label-main">Bending</span>
-                <span>(smooth angles)</span>
-              </label>
-              <label class="toggle">
-                <input type="checkbox" id="twist-toggle" checked />
-                <span class="label-main">Twist</span>
-                <span>(resists corkscrew)</span>
-              </label>
+            <label>Constraint weights (0–100%)</label>
+            <div class="slider-row">
+              <span>Stretch</span>
+              <input type="range" id="stretch-weight" min="0" max="100" value="50" />
+              <span class="slider-value" id="stretch-value">50%</span>
+            </div>
+            <div class="slider-row">
+              <span>Bending</span>
+              <input type="range" id="bend-weight" min="0" max="100" value="12" />
+              <span class="slider-value" id="bend-value">12%</span>
+            </div>
+            <div class="slider-row">
+              <span>Twist</span>
+              <input type="range" id="twist-weight" min="0" max="100" value="5" />
+              <span class="slider-value" id="twist-value">5%</span>
             </div>
           </div>
 
           <div class="control-group">
-            <span class="pill-label">World parameters</span>
+            <label>Enable constraints</label>
+            <label class="toggle">
+              <input type="checkbox" id="stretch-toggle" checked /> Stretch
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="bending-toggle" checked /> Bending
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="twist-toggle" checked /> Twist
+            </label>
+          </div>
+
+          <div class="control-group">
+            <label>World</label>
             <div class="slider-row">
               <span>Gravity</span>
               <input type="range" id="gravity-slider" min="0" max="30" value="12" />
-              <span class="slider-value" id="gravity-value">1.2g</span>
+              <span class="slider-value" id="gravity-value">1.2</span>
             </div>
             <div class="slider-row">
-              <span>Hair stiffness</span>
+              <span>Iters</span>
               <input type="range" id="stiffness-slider" min="1" max="40" value="15" />
-              <span class="slider-value" id="stiffness-value">15 iters</span>
+              <span class="slider-value" id="stiffness-value">15</span>
             </div>
           </div>
 
           <div class="control-group">
-            <span class="pill-label">Simulation</span>
-            <div class="control-row">
-              <div class="btn-bar">
-                <button id="play-pause-btn">
-                  <span class="dot"></span>
-                  <span>Running</span>
-                </button>
-                <button id="reset-btn" class="secondary">
-                  <span>Reset Hair</span>
-                </button>
-                <button id="messy-btn" class="secondary">
-                  <span>Make Messy</span>
-                </button>
-              </div>
+            <div class="btn-bar">
+              <button id="play-pause-btn"><span class="dot"></span>Running</button>
+              <button id="reset-btn">Reset</button>
+              <button id="messy-btn">Make messy</button>
             </div>
           </div>
 
-          <div class="control-group">
-            <span class="pill-label">Legend &amp; diagnostics</span>
-            <div class="legend">
-              <span class="legend-item">
-                <span class="legend-swatch swatch-root"></span>
-                Root (fixed)
-              </span>
-              <span class="legend-item">
-                <span class="legend-swatch swatch-regularized"></span>
-                Stable / regularized strand
-              </span>
-              <span class="legend-item">
-                <span class="legend-swatch swatch-unstable"></span>
-                High strain (no regularization)
-              </span>
+          <div class="control-group metrics" id="metrics">
+            <div class="metric-row">
+              <span>Stretch error</span>
+              <span id="metric-stretch">–</span>
             </div>
-            <div class="metrics" id="metrics">
-              <div class="metric-row">
-                <span>Mean stretch error</span>
-                <span id="metric-stretch">–</span>
-              </div>
-              <div class="metric-row">
-                <span>Mean bending error</span>
-                <span id="metric-bend">–</span>
-              </div>
-              <div class="metric-row">
-                <span>Mean twist error</span>
-                <span id="metric-twist">–</span>
-              </div>
+            <div class="metric-row">
+              <span>Bend error</span>
+              <span id="metric-bend">–</span>
+            </div>
+            <div class="metric-row">
+              <span>Twist error</span>
+              <span id="metric-twist">–</span>
             </div>
           </div>
         </div>
@@ -375,6 +289,12 @@
     const stretchToggle = document.getElementById('stretch-toggle');
     const bendingToggle = document.getElementById('bending-toggle');
     const twistToggle = document.getElementById('twist-toggle');
+    const stretchWeightSlider = document.getElementById('stretch-weight');
+    const bendWeightSlider = document.getElementById('bend-weight');
+    const twistWeightSlider = document.getElementById('twist-weight');
+    const stretchValueEl = document.getElementById('stretch-value');
+    const bendValueEl = document.getElementById('bend-value');
+    const twistValueEl = document.getElementById('twist-value');
     const gravitySlider = document.getElementById('gravity-slider');
     const gravityValue = document.getElementById('gravity-value');
     const stiffnessSlider = document.getElementById('stiffness-slider');
@@ -392,17 +312,16 @@
     // Simulation parameters
     const strandCount = 32;
     const segmentsPerStrand = 22;
-    const baseLength = 10; // rest length in pixels
+    const baseLength = 10;
     const dt = 1 / 60;
     const damping = 0.995;
     let solverIterations = parseInt(stiffnessSlider.value, 10);
+    let gravity = gravitySlider.value / 10;
 
-    let gravity = gravitySlider.value / 10; // map 0–30 -> 0–3 g approx
-
-    // Per-constraint weights (so each term has its own "strength")
-    const STRETCH_STIFF = 0.5;
-    const BEND_STIFF   = 0.12;
-    const TWIST_STIFF  = 0.05;
+    // Weight from slider 0–100 -> stiffness in safe range
+    function stretchStiff() { return (parseInt(stretchWeightSlider.value, 10) / 100) * 1; }
+    function bendStiff()   { return (parseInt(bendWeightSlider.value, 10) / 100) * 0.3; }
+    function twistStiff()  { return (parseInt(twistWeightSlider.value, 10) / 100) * 0.15; }
 
     const hair = []; // array of strands, each strand is array of particles
     // Particle: { x, y, px, py, pinned, restLen, restAngles, restFarAngles }
@@ -511,7 +430,7 @@
     }
 
     function applyStretch() {
-      const stiffness = STRETCH_STIFF;
+      const stiffness = stretchStiff();
       for (const strand of hair) {
         for (let i = 0; i < strand.length - 1; i++) {
           const a = strand[i];
@@ -536,7 +455,7 @@
     }
 
     function applyBending() {
-      const stiffness = BEND_STIFF;
+      const stiffness = bendStiff();
       for (const strand of hair) {
         const restAngles = strand[0].restAngles;
         for (let i = 1; i < strand.length - 1; i++) {
@@ -571,7 +490,7 @@
     }
 
     function applyTwistLike() {
-      const stiffness = TWIST_STIFF;
+      const stiffness = twistStiff();
       const k = 4;
       for (const strand of hair) {
         const restFarAngles = strand[0].restFarAngles;
@@ -734,16 +653,16 @@
         }
         ctx.stroke();
 
-        // Draw root as cyan dot
+        // Draw root
         const root = strand[0];
-        ctx.fillStyle = '#7dd3fc';
+        ctx.fillStyle = '#333';
         ctx.beginPath();
         ctx.arc(root.x, root.y, 3, 0, Math.PI * 2);
         ctx.fill();
       }
 
       // Draw comb
-      ctx.strokeStyle = comb.active ? 'rgba(96, 165, 250, 0.9)' : 'rgba(96, 165, 250, 0.4)';
+      ctx.strokeStyle = comb.active ? '#1976d2' : '#90a4ae';
       ctx.lineWidth = 1.5;
       ctx.setLineDash(comb.active ? [6, 4] : [4, 4]);
       ctx.beginPath();
@@ -751,8 +670,7 @@
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Comb center
-      ctx.fillStyle = comb.active ? 'rgba(96, 165, 250, 0.45)' : 'rgba(96, 165, 250, 0.25)';
+      ctx.fillStyle = comb.active ? '#1976d2' : '#b0bec5';
       ctx.beginPath();
       ctx.arc(comb.x, comb.y, 4, 0, Math.PI * 2);
       ctx.fill();
@@ -780,31 +698,30 @@
     }
 
     // UI wiring
+    stretchWeightSlider.addEventListener('input', () => {
+      stretchValueEl.textContent = stretchWeightSlider.value + '%';
+    });
+    bendWeightSlider.addEventListener('input', () => {
+      bendValueEl.textContent = bendWeightSlider.value + '%';
+    });
+    twistWeightSlider.addEventListener('input', () => {
+      twistValueEl.textContent = twistWeightSlider.value + '%';
+    });
+
     gravitySlider.addEventListener('input', () => {
       gravity = gravitySlider.value / 10;
-      gravityValue.textContent = (gravitySlider.value / 10).toFixed(1) + 'g';
+      gravityValue.textContent = (gravitySlider.value / 10).toFixed(1);
     });
 
     stiffnessSlider.addEventListener('input', () => {
       solverIterations = parseInt(stiffnessSlider.value, 10);
-      stiffnessValue.textContent = solverIterations + ' iters';
+      stiffnessValue.textContent = solverIterations;
     });
 
     playPauseBtn.addEventListener('click', () => {
       running = !running;
-      const dot = playPauseBtn.querySelector('.dot');
-      const label = playPauseBtn.querySelector('span:nth-child(2)');
-      if (running) {
-        playPauseBtn.classList.remove('paused');
-        dot.style.background = '#4dffb5';
-        dot.style.boxShadow = '0 0 12px rgba(77, 255, 181, 0.8)';
-        label.textContent = 'Running';
-      } else {
-        playPauseBtn.classList.add('paused');
-        dot.style.background = '#ffb54d';
-        dot.style.boxShadow = '0 0 12px rgba(255, 181, 77, 0.8)';
-        label.textContent = 'Paused';
-      }
+      playPauseBtn.classList.toggle('paused', !running);
+      playPauseBtn.innerHTML = running ? '<span class="dot"></span>Running' : '<span class="dot"></span>Paused';
     });
 
     resetBtn.addEventListener('click', () => {
@@ -864,8 +781,11 @@
     });
 
     // Initialize UI text
-    gravityValue.textContent = (gravitySlider.value / 10).toFixed(1) + 'g';
-    stiffnessValue.textContent = solverIterations + ' iters';
+    stretchValueEl.textContent = stretchWeightSlider.value + '%';
+    bendValueEl.textContent = bendWeightSlider.value + '%';
+    twistValueEl.textContent = twistWeightSlider.value + '%';
+    gravityValue.textContent = (gravitySlider.value / 10).toFixed(1);
+    stiffnessValue.textContent = solverIterations;
 
     // Boot
     initHair();
