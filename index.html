@@ -399,6 +399,11 @@
 
     let gravity = gravitySlider.value / 10; // map 0–30 -> 0–3 g approx
 
+    // Per-constraint weights (so each term has its own "strength")
+    const STRETCH_STIFF = 0.5;
+    const BEND_STIFF   = 0.12;
+    const TWIST_STIFF  = 0.05;
+
     const hair = []; // array of strands, each strand is array of particles
     // Particle: { x, y, px, py, pinned, restLen, restAngles, restFarAngles }
 
@@ -506,7 +511,7 @@
     }
 
     function applyStretch() {
-      const stiffness = 0.5;
+      const stiffness = STRETCH_STIFF;
       for (const strand of hair) {
         for (let i = 0; i < strand.length - 1; i++) {
           const a = strand[i];
@@ -531,7 +536,7 @@
     }
 
     function applyBending() {
-      const stiffness = 0.15;
+      const stiffness = BEND_STIFF;
       for (const strand of hair) {
         const restAngles = strand[0].restAngles;
         for (let i = 1; i < strand.length - 1; i++) {
@@ -566,7 +571,7 @@
     }
 
     function applyTwistLike() {
-      const stiffness = 0.08;
+      const stiffness = TWIST_STIFF;
       const k = 4;
       for (const strand of hair) {
         const restFarAngles = strand[0].restFarAngles;
@@ -758,11 +763,13 @@
         verletIntegrate();
         applyCombInteraction();
 
+        // Global iteration count comes from "Hair stiffness" slider,
+        // but bending and twist run less frequently to avoid instability.
         const iters = solverIterations;
         for (let i = 0; i < iters; i++) {
-          if (stretchToggle.checked) applyStretch();
-          if (bendingToggle.checked) applyBending();
-          if (twistToggle.checked) applyTwistLike();
+          if (stretchToggle.checked) applyStretch();          // every iteration
+          if (bendingToggle.checked && i % 2 === 0) applyBending();  // every 2nd
+          if (twistToggle.checked && i % 3 === 0) applyTwistLike();  // every 3rd
           enforceBounds();
         }
         computeMetrics();
